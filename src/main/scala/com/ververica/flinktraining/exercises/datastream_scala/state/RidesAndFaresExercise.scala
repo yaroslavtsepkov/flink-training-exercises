@@ -28,16 +28,16 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 import org.apache.flink.util.Collector
 
 /**
-  * The "Stateful Enrichment" exercise of the Flink training
-  * (http://training.ververica.com).
-  *
-  * The goal for this exercise is to enrich TaxiRides with fare information.
-  *
-  * Parameters:
-  * -rides path-to-input-file
-  * -fares path-to-input-file
-  *
-  */
+ * The "Stateful Enrichment" exercise of the Flink training
+ * (http://training.ververica.com).
+ *
+ * The goal for this exercise is to enrich TaxiRides with fare information.
+ *
+ * Parameters:
+ * -rides path-to-input-file
+ * -fares path-to-input-file
+ *
+ */
 object RidesAndFaresExercise {
   def main(args: Array[String]) {
 
@@ -73,13 +73,33 @@ object RidesAndFaresExercise {
 
   class EnrichmentFunction extends RichCoFlatMapFunction[TaxiRide, TaxiFare, (TaxiRide, TaxiFare)] {
 
+    // keyed, managed state
+    lazy val rideState: ValueState[TaxiRide] = getRuntimeContext.getState(
+      new ValueStateDescriptor[TaxiRide]("saved ride", classOf[TaxiRide]))
+    lazy val fareState: ValueState[TaxiFare] = getRuntimeContext.getState(
+      new ValueStateDescriptor[TaxiFare]("saved fare", classOf[TaxiFare]))
+
     override def flatMap1(ride: TaxiRide, out: Collector[(TaxiRide, TaxiFare)]): Unit = {
-      throw new MissingSolutionException()
+      val fare = fareState.value
+      if (fare != null) {
+        fareState.clear()
+        out.collect((ride, fare))
+      }
+      else {
+        rideState.update(ride)
+      }
     }
 
     override def flatMap2(fare: TaxiFare, out: Collector[(TaxiRide, TaxiFare)]): Unit = {
+      val ride = rideState.value
+      if (ride != null) {
+        rideState.clear()
+        out.collect((ride, fare))
+      }
+      else {
+        fareState.update(fare)
+      }
     }
-
   }
 
 }

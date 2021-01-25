@@ -35,24 +35,30 @@ import org.apache.flink.streaming.api.scala._
  *
  */
 object RideCleansingExercise extends ExerciseBase {
+
   def main(args: Array[String]) {
-    // parse parameters
+
+    // get the data
     val params = ParameterTool.fromArgs(args)
     val input = params.get("input", ExerciseBase.pathToRideData)
 
     val maxDelay = 60 // events are out of order by max 60 seconds
     val speed = 600   // events of 10 minutes are served in 1 second
 
-    // set up the execution environment
+    // set up the execution environment for control the job execution
+    // getExecutionEnvironment: creating an execution environment that represents the context in which the program is currently executed.
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    // set the parallelism for operations executed through this environment.
     env.setParallelism(parallelism)
 
     // get the taxi ride data stream
+    // adding a data source with a custom type information thus opening a DataStream.
     val rides = env.addSource(rideSourceOrTest(new TaxiRideSource(input, maxDelay, speed)))
 
     val filteredRides = rides
       // filter out rides that do not start and end in NYC
-      .filter(ride => throw new MissingSolutionException)
+      .filter(r => GeoUtils.isInNYC(r.startLon, r.startLat) && GeoUtils.isInNYC(r.endLon, r.endLat))
+    //.filter(ride => throw new MissingSolutionException)
 
     // print the filtered stream
     printOrTest(filteredRides)
